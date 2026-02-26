@@ -1,0 +1,62 @@
+[
+  {
+    "name": "AI Addendum",
+    "description": "Addendum addressing AI-specific terms such as use of AI in service delivery, training data rights, and AI-generated output ownership.",
+    "filename": "AI-Addendum.md"
+  },
+  {
+    "name": "Business Associate Agreement",
+    "description": "HIPAA-compliant agreement governing the handling of protected health information (PHI) between covered entities and business associates.",
+    "filename": "BAA.md"
+  },
+  {
+    "name": "Cloud Service Agreement",
+    "description": "Standard agreement for cloud/SaaS service subscriptions covering access rights, payment terms, data handling, warranties, and liability.",
+    "filename": "CSA.md"
+  },
+  {
+    "name": "Data Processing Agreement",
+    "description": "Agreement for GDPR and privacy law compliance governing how a data processor handles personal data on behalf of a data controller.",
+    "filename": "DPA.md"
+  },
+  {
+    "name": "Design Partner Agreement",
+    "description": "Agreement for early-stage design partnerships where a vendor provides pre-release or beta software/services in exchange for feedback and collaboration.",
+    "filename": "design-partner-agreement.md"
+  },
+  {
+    "name": "Mutual NDA",
+    "description": "Standard terms for a Mutual Non-Disclosure Agreement governing the bilateral exchange and protection of confidential information.",
+    "filename": "Mutual-NDA.md"
+  },
+  {
+    "name": "Mutual NDA Cover Page",
+    "description": "Cover page with deal-specific terms (parties, effective date, term) that pairs with the Mutual NDA standard terms.",
+    "filename": "Mutual-NDA-coverpage.md"
+  },
+  {
+    "name": "Professional Services Agreement",
+    "description": "Agreement for professional/consulting services covering scope of work, deliverables, payment, intellectual property, and liability.",
+    "filename": "psa.md"
+  },
+  {
+    "name": "Partnership Agreement",
+    "description": "Agreement for technology or business partnerships covering collaboration terms, co-marketing, revenue sharing, and integration commitments.",
+    "filename": "Partnership-Agreement.md"
+  },
+  {
+    "name": "Pilot Agreement",
+    "description": "Agreement for time-limited pilot/trial engagements where a customer evaluates a vendor's product before a full commercial commitment.",
+    "filename": "Pilot-Agreement.md"
+  },
+  {
+    "name": "Service Level Agreement",
+    "description": "Agreement defining uptime commitments, performance metrics, measurement methodology, and service credit remedies.",
+    "filename": "sla.md"
+  },
+  {
+    "name": "Software License Agreement",
+    "description": "Agreement for on-premise or self-hosted software licensing covering license grants, delivery, support, maintenance, and IP terms.",
+    "filename": "Software-License-Agreement.md"
+  }
+]
