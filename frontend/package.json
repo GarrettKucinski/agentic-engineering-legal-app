@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "html2pdf.js": "^0.14.0",
+    "@react-pdf/renderer": "^4.3.2",
     "isomorphic-dompurify": "^3.0.0",
     "marked": "^17.0.3",
     "next": "16.1.6",
