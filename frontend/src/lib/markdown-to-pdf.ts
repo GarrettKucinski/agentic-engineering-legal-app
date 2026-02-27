@@ -36,7 +36,18 @@ function renderInline(tokens: Token[]): React.ReactElement[] {
       return React.createElement(Text, { key: i, style: styles.codespan }, (token as Tokens.Codespan).text);
     }
     if (token.type === "link") {
-      return React.createElement(Text, { key: i }, (token as Tokens.Link).text);
+      const linkToken = token as Tokens.Link;
+      return React.createElement(Text, { key: i }, ...renderInline(linkToken.tokens ?? []));
+    }
+    if (token.type === "br") {
+      return React.createElement(Text, { key: i }, "\n");
+    }
+    if (token.type === "del") {
+      return React.createElement(
+        Text,
+        { key: i },
+        ...renderInline((token as Tokens.Del).tokens)
+      );
     }
     const t = token as { text?: string; raw?: string };
     return React.createElement(Text, { key: i }, t.text ?? t.raw ?? "");
@@ -47,11 +58,18 @@ function renderListItem(item: Tokens.ListItem, ordered: boolean, index: number):
   const bullet = ordered ? `${index + 1}.` : "•";
   const inlineTokens: Token[] = [];
   for (const t of item.tokens) {
-    if (t.type === "text" && "tokens" in t && Array.isArray((t as Tokens.Text).tokens)) {
-      inlineTokens.push(...((t as Tokens.Text).tokens ?? []));
-    } else {
-      inlineTokens.push(t);
+    if (t.type === "text") {
+      const textToken = t as Tokens.Text;
+      if (Array.isArray(textToken.tokens) && textToken.tokens.length > 0) {
+        inlineTokens.push(...textToken.tokens);
+      } else {
+        inlineTokens.push(t);
+      }
+    } else if (t.type === "paragraph") {
+      const paraToken = t as Tokens.Paragraph;
+      inlineTokens.push(...paraToken.tokens);
     }
+    // Skip nested lists, code blocks, blockquotes — not present in NDA standard terms
   }
   return React.createElement(
     View,
