@@ -1,6 +1,6 @@
 import { NdaFormData } from "./types";
 
-function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string): string {
   if (!dateStr) return "________";
   const date = new Date(dateStr + "T00:00:00");
   return date.toLocaleDateString("en-US", {

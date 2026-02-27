@@ -8,6 +8,7 @@ import {
 } from "@react-pdf/renderer";
 import { NdaFormData } from "./types";
 import { markdownToPdfElements } from "./markdown-to-pdf";
+import { formatDate } from "./nda-template";
 
 const styles = StyleSheet.create({
   page: {
@@ -171,16 +172,6 @@ const styles = StyleSheet.create({
   },
 });
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "________";
-  const date = new Date(dateStr + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
 function CheckBox({ checked, label }: { checked: boolean; label: string }) {
   return (
     <View style={styles.checkRow}>
@@ -330,7 +321,7 @@ function StandardTermsPages({ resolvedTerms }: { resolvedTerms: string }) {
         style={styles.footer}
         fixed
         render={({ pageNumber, totalPages }) =>
-          `Common Paper Mutual NDA v1.0  |  Page ${pageNumber} of ${totalPages}`
+          `Common Paper Mutual NDA v1.0  |  Page ${pageNumber - 1} of ${totalPages - 1}`
         }
       />
     </Page>

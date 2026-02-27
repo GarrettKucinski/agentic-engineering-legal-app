@@ -47,10 +47,12 @@ export default function NdaCreator({ standardTermsTemplate }: NdaCreatorProps) {
       a.href = url;
       const p1 = (formData.party1Company || "party1")
         .toLowerCase()
-        .replace(/\s+/g, "-");
+        .replace(/\s+/g, "-")
+        .replace(/[^\w-]/g, "");
       const p2 = (formData.party2Company || "party2")
         .toLowerCase()
-        .replace(/\s+/g, "-");
+        .replace(/\s+/g, "-")
+        .replace(/[^\w-]/g, "");
       a.download = `mutual-nda-${p1}-${p2}.pdf`;
       document.body.appendChild(a);
       a.click();

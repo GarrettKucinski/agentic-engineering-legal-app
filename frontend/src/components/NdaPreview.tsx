@@ -9,13 +9,11 @@ import { generateFullMarkdown } from "@/lib/nda-template";
 interface NdaPreviewProps {
   standardTermsTemplate: string;
   data: NdaFormData;
-  previewRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export default function NdaPreview({
   standardTermsTemplate,
   data,
-  previewRef,
 }: NdaPreviewProps) {
   const html = useMemo(() => {
     const fullMarkdown = generateFullMarkdown(standardTermsTemplate, data);
@@ -25,7 +23,6 @@ export default function NdaPreview({
 
   return (
     <div
-      ref={previewRef}
       className="nda-document bg-white text-gray-900 p-8 lg:p-12 rounded-lg border border-gray-200 shadow-sm"
       dangerouslySetInnerHTML={{ __html: html }}
     />
