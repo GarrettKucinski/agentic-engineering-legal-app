@@ -37,6 +37,12 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+!.env.local.example
+!**/.env.local.example
+
+# Dev process PID files
+.backend.pid
+.frontend.pid
 
 # IDE
 .vscode/
