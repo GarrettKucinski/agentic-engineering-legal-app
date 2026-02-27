@@ -12,7 +12,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from jose import jwt
 from litellm import acompletion
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from pydantic import BaseModel, field_validator
 
 from db import get_connection, init_db
@@ -34,7 +35,14 @@ STATIC_DIR = os.getenv("STATIC_DIR", "frontend/out")
 MODEL = "openrouter/openai/gpt-oss-120b"
 EXTRA_BODY = {"provider": {"order": ["Cerebras"]}}
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+ph = PasswordHasher()
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return ph.verify(hashed, plain)
+    except VerifyMismatchError:
+        return False
 
 CHAT_SYSTEM_PROMPT = """You are a friendly legal document assistant helping users create a Mutual Non-Disclosure Agreement (Mutual NDA) based on the Common Paper Standard v1.0.
 
@@ -206,7 +214,7 @@ async def generate_chat_stream(messages: list[dict]):
 
 @app.post("/api/auth/register", response_model=AuthResponse)
 async def register(req: RegisterRequest):
-    password_hash = pwd_context.hash(req.password)
+    password_hash = ph.hash(req.password)
     conn = get_connection()
     try:
         cursor = conn.execute(
@@ -235,7 +243,7 @@ async def login(req: LoginRequest):
     finally:
         conn.close()
 
-    if row is None or not pwd_context.verify(req.password, row["password_hash"]):
+    if row is None or not verify_password(req.password, row["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",

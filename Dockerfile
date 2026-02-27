@@ -22,6 +22,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+ENV SECRET_KEY="boogieboogiebooboo"
 # Install uv for fast dependency installation
 RUN pip install uv --no-cache-dir
 
