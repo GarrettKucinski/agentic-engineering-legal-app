@@ -1,19 +1,22 @@
-import { readFileSync } from "fs";
-import { join } from "path";
-import NdaCreator from "@/components/NdaCreator";
+"use client";
 
-function loadTemplate(): string {
-  try {
-    const templatesDir = join(process.cwd(), "..", "templates");
-    return readFileSync(join(templatesDir, "Mutual-NDA.md"), "utf-8");
-  } catch {
-    throw new Error(
-      "Failed to load Mutual-NDA.md template. Ensure the templates/ directory exists at the project root.",
-    );
-  }
-}
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { isAuthenticated } from "@/lib/auth";
 
 export default function Home() {
-  const standardTerms = loadTemplate();
-  return <NdaCreator standardTermsTemplate={standardTerms} />;
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace(isAuthenticated() ? "/dashboard" : "/login");
+  }, [router]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div
+        className="w-8 h-8 border-2 rounded-full animate-spin"
+        style={{ borderColor: "#209dd7", borderTopColor: "transparent" }}
+      />
+    </div>
+  );
 }
