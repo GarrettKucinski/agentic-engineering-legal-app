@@ -22,18 +22,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+ENV SECRET_KEY="boogieboogiebooboo"
 # Install uv for fast dependency installation
 RUN pip install uv --no-cache-dir
 
-# Install Python dependencies
-RUN uv pip install --system \
-    "fastapi>=0.115.0" \
-    "uvicorn[standard]>=0.32.0" \
-    "python-jose[cryptography]>=3.3.0" \
-    "passlib[bcrypt]>=1.7.4" \
-    "python-dotenv>=1.0.0"
+# Install Python dependencies from pyproject.toml
+COPY backend/pyproject.toml ./
+RUN uv pip install --system .
 
-# Copy backend source
+# Copy backend source (overwrites pyproject.toml + adds main.py, db.py)
 COPY backend/ ./
 
 # Copy static frontend from build stage
