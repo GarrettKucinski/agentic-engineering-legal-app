@@ -10,8 +10,8 @@ from app.prompts import (
     CHAT_SYSTEM_PROMPT,
     EXTRACTION_SYSTEM_PROMPT,
     GENERIC_EXTRACTION_PROMPT,
-    SELECTION_EXTRACTION_PROMPT,
     build_chat_prompt,
+    build_selection_extraction_prompt,
     build_selection_prompt,
 )
 from app.utils import build_extraction_model
@@ -20,8 +20,9 @@ from app.utils import build_extraction_model
 async def generate_chat_stream(
     messages: list[dict],
     document_type: Optional[str] = None,
-    variables: list[str] = [],
+    variables: list[str] | None = None,
 ):
+    variables = variables or []
     # SELECTION PHASE: no document type set yet
     if document_type is None:
         catalog = load_catalog()
@@ -46,7 +47,7 @@ async def generate_chat_stream(
 
         # Extract which document was selected
         extraction_messages = [
-            {"role": "system", "content": SELECTION_EXTRACTION_PROMPT},
+            {"role": "system", "content": build_selection_extraction_prompt(catalog)},
             *messages,
             {"role": "assistant", "content": full_response},
         ]

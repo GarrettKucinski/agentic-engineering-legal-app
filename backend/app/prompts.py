@@ -1,11 +1,17 @@
+# These must match the "name" field in catalog.json exactly.
+# If addendum documents are added or renamed in the catalog, update this set too.
 _ADDENDUM_TYPES = {"AI Addendum", "Mutual NDA Cover Page"}
 
-SELECTION_EXTRACTION_PROMPT = """You are a document selection assistant. Based on the conversation, identify which document template the user wants to create.
+def build_selection_extraction_prompt(catalog: list[dict]) -> str:
+    names = "\n".join(f"- {entry['name']}" for entry in catalog)
+    return f"""You are a document selection assistant. Based on the conversation, identify which document template the user wants to create.
+
+Available document names (use EXACTLY one of these, or null):
+{names}
 
 Rules:
-- Return the exact document name from the catalog if the user has clearly indicated one
-- Return null if the user has not yet committed to a specific document type
-- Use the name exactly as it appears in the catalog (e.g. "Mutual NDA", "Business Associate Agreement")"""
+- Return the exact document name from the list above if the user has clearly indicated one
+- Return null if the user has not yet committed to a specific document type"""
 
 
 def build_selection_prompt(catalog: list[dict]) -> str:
