@@ -1,33 +1,56 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { clearToken } from "@/lib/auth";
-import { filenameToSlug } from "@/lib/doc-template";
-import { CatalogEntry } from "@/lib/types";
+import { fetchTemplate, TemplateData } from "@/lib/api";
+import AiChat from "@/components/AiChat";
+import DocPreview from "@/components/DocPreview";
+import DocPlaceholder from "@/components/DocPlaceholder";
 
-const ADDENDUM_TYPES = new Set(["AI Addendum", "Mutual NDA Cover Page"]);
-
-interface Props {
-  catalog: CatalogEntry[];
-}
-
-export default function DashboardClient({ catalog }: Props) {
+export default function DashboardClient() {
   const router = useRouter();
+  const [templateData, setTemplateData] = useState<TemplateData | null>(null);
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
 
   function handleLogout() {
     clearToken();
     router.push("/login");
   }
 
+  const handleFieldsUpdate = useCallback(
+    (updated: Record<string, string>) =>
+      setFields((prev) => ({ ...prev, ...updated })),
+    [],
+  );
+
+  const handleDocumentSelected = useCallback(async (name: string, slug: string) => {
+    setLoadingTemplate(true);
+    try {
+      const data = await fetchTemplate(slug);
+      setTemplateData(data);
+      setFields({});
+    } catch (err) {
+      console.error("Failed to load template:", err);
+    } finally {
+      setLoadingTemplate(false);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold" style={{ color: "#032147" }}>
-            LegalDraft
-          </h1>
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: "#032147" }}>
+              LegalDraft
+            </h1>
+            {templateData && (
+              <p className="text-sm text-gray-500">{templateData.description}</p>
+            )}
+          </div>
           <button
             onClick={handleLogout}
             className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
@@ -37,58 +60,50 @@ export default function DashboardClient({ catalog }: Props) {
         </div>
       </header>
 
-      {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold" style={{ color: "#032147" }}>
-            Document Templates
-          </h2>
-          <p className="mt-1 text-sm" style={{ color: "#888888" }}>
-            Choose a legal document to get started
-          </p>
-        </div>
+      {/* Two-column layout */}
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: AI Chat */}
+          <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-4">
+            <div
+              className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 flex flex-col"
+              style={{ minHeight: "calc(100vh - 10rem)" }}
+            >
+              <AiChat
+                onFieldsUpdate={handleFieldsUpdate}
+                onDocumentSelected={handleDocumentSelected}
+                documentType={templateData?.name}
+                variables={templateData?.variables}
+              />
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {catalog.map((entry) => {
-            const isAddendum = ADDENDUM_TYPES.has(entry.name);
-            const slug = filenameToSlug(entry.filename);
-            const href = entry.name === "Mutual NDA" ? "/nda" : `/doc/${slug}`;
-            return (
+          {/* Right: Document preview or placeholder */}
+          <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+            {loadingTemplate ? (
               <div
-                key={entry.filename}
-                className="bg-white rounded-xl border shadow-sm p-5 flex flex-col gap-3"
-                style={{ borderColor: "#209dd7" }}
+                className="nda-document flex items-center justify-center"
+                style={{ minHeight: "calc(100vh - 10rem)" }}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold" style={{ color: "#032147" }}>
-                    {entry.name}
-                  </h3>
-                  {isAddendum && (
-                    <span
-                      className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "#e8f4fb", color: "#0d6e9e" }}
-                    >
-                      Addendum
-                    </span>
-                  )}
+                <div className="flex flex-col items-center gap-3 text-gray-400">
+                  <svg className="h-8 w-8 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span className="text-sm">Loading template…</span>
                 </div>
-
-                <p className="text-xs leading-relaxed flex-1" style={{ color: "#888888" }}>
-                  {entry.description}
-                </p>
-
-                <Link
-                  href={href}
-                  className="mt-auto inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: "#209dd7" }}
-                >
-                  Create →
-                </Link>
               </div>
-            );
-          })}
+            ) : templateData ? (
+              <DocPreview
+                templateMarkdown={templateData.template_markdown}
+                fields={fields}
+              />
+            ) : (
+              <DocPlaceholder />
+            )}
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
