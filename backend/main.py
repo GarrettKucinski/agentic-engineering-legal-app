@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -15,7 +14,7 @@ from jose import jwt
 from litellm import acompletion
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from pydantic import BaseModel, create_model, field_validator
+from pydantic import BaseModel, field_validator
 
 from db import get_connection, init_db
 from prompts import (
