@@ -40,6 +40,10 @@ COPY --from=frontend-build /app/frontend/out ./frontend/out
 COPY catalog.json ./catalog.json
 COPY templates/ ./templates/
 
+# Set catalog and template paths for the Docker runtime
+ENV CATALOG_PATH="./catalog.json"
+ENV TEMPLATES_DIR="./templates"
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
