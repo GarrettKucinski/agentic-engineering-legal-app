@@ -47,6 +47,7 @@ export interface ChatMessage {
 interface ChatStreamCallbacks {
   onToken: (token: string) => void;
   onFields: (fields: Record<string, string>) => void;
+  onDocumentSelected: (name: string, slug: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
 }
@@ -119,6 +120,8 @@ export async function chatStream(
             callbacks.onToken(event.content);
           } else if (event.type === "fields") {
             callbacks.onFields(event.data as Record<string, string>);
+          } else if (event.type === "document_selected") {
+            callbacks.onDocumentSelected(event.name as string, event.slug as string);
           } else if (event.type === "done") {
             doneReceived = true;
             callbacks.onDone();
@@ -135,4 +138,26 @@ export async function chatStream(
   } catch (err) {
     callbacks.onError(err instanceof Error ? err.message : "Stream error");
   }
+}
+
+export interface TemplateData {
+  name: string;
+  description: string;
+  filename: string;
+  template_markdown: string;
+  variables: string[];
+}
+
+export async function fetchTemplate(slug: string): Promise<TemplateData> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/api/templates/${slug}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `HTTP ${res.status}`);
+  }
+  return res.json();
 }

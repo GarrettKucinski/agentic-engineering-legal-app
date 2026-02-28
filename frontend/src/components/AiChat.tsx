@@ -5,12 +5,14 @@ import { chatStream, ChatMessage } from "@/lib/api";
 
 interface AiChatProps {
   onFieldsUpdate: (fields: Record<string, string>) => void;
+  onDocumentSelected?: (name: string, slug: string) => void;
   documentType?: string;
   variables?: string[];
 }
 
 export default function AiChat({
   onFieldsUpdate,
+  onDocumentSelected,
   documentType,
   variables,
 }: AiChatProps) {
@@ -37,6 +39,7 @@ export default function AiChat({
             setStreamingContent(accumulated);
           },
           onFields: onFieldsUpdate,
+          onDocumentSelected: (name, slug) => onDocumentSelected?.(name, slug),
           onDone: () => {
             setMessages((prev) => [
               ...prev,
@@ -55,7 +58,7 @@ export default function AiChat({
         variables,
       );
     },
-    [onFieldsUpdate, documentType, variables]
+    [onFieldsUpdate, onDocumentSelected, documentType, variables]
   );
 
   // Kick off the initial AI greeting on mount
@@ -86,7 +89,9 @@ export default function AiChat({
       <div className="mb-4 pb-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
         <p className="text-xs text-gray-500">
-          Chat with our AI to fill in your {documentType ?? "document"}
+          {documentType
+            ? `Chat with our AI to fill in your ${documentType}`
+            : "Tell us what kind of document you need"}
         </p>
       </div>
 
