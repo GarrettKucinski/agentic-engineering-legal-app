@@ -2,13 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { chatStream, ChatMessage } from "@/lib/api";
-import { NdaFormData } from "@/lib/types";
 
 interface AiChatProps {
-  onFieldsUpdate: (fields: Partial<NdaFormData>) => void;
+  onFieldsUpdate: (fields: Record<string, string>) => void;
+  documentType?: string;
+  variables?: string[];
 }
 
-export default function AiChat({ onFieldsUpdate }: AiChatProps) {
+export default function AiChat({
+  onFieldsUpdate,
+  documentType,
+  variables,
+}: AiChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -24,28 +29,33 @@ export default function AiChat({ onFieldsUpdate }: AiChatProps) {
       setError(null);
       let accumulated = "";
 
-      await chatStream(apiMessages, {
-        onToken: (token) => {
-          accumulated += token;
-          setStreamingContent(accumulated);
+      await chatStream(
+        apiMessages,
+        {
+          onToken: (token) => {
+            accumulated += token;
+            setStreamingContent(accumulated);
+          },
+          onFields: onFieldsUpdate,
+          onDone: () => {
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: accumulated },
+            ]);
+            setStreamingContent(null);
+            setIsStreaming(false);
+          },
+          onError: (err) => {
+            setError(err);
+            setStreamingContent(null);
+            setIsStreaming(false);
+          },
         },
-        onFields: onFieldsUpdate,
-        onDone: () => {
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: accumulated },
-          ]);
-          setStreamingContent(null);
-          setIsStreaming(false);
-        },
-        onError: (err) => {
-          setError(err);
-          setStreamingContent(null);
-          setIsStreaming(false);
-        },
-      });
+        documentType,
+        variables,
+      );
     },
-    [onFieldsUpdate]
+    [onFieldsUpdate, documentType, variables]
   );
 
   // Kick off the initial AI greeting on mount
@@ -76,7 +86,7 @@ export default function AiChat({ onFieldsUpdate }: AiChatProps) {
       <div className="mb-4 pb-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
         <p className="text-xs text-gray-500">
-          Chat with our AI to fill in your Mutual NDA
+          Chat with our AI to fill in your {documentType ?? "document"}
         </p>
       </div>
 

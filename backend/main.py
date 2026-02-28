@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -14,7 +15,7 @@ from jose import jwt
 from litellm import acompletion
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, create_model, field_validator
 
 from db import get_connection, init_db
 
@@ -43,6 +44,61 @@ def verify_password(plain: str, hashed: str) -> bool:
         return ph.verify(hashed, plain)
     except VerifyMismatchError:
         return False
+
+_ADDENDUM_TYPES = {"AI Addendum", "Mutual NDA Cover Page"}
+
+GENERIC_EXTRACTION_PROMPT = """You are a field extraction assistant. Extract field values from the conversation below.
+
+Rules:
+- For dates, use YYYY-MM-DD format
+- Only populate fields that were clearly and explicitly specified in the conversation
+- Leave as null if a field was not mentioned or is unclear"""
+
+
+def _sanitize_field_name(name: str) -> str:
+    """Convert a display name like 'BAA Effective Date' to a valid Python identifier."""
+    name = re.sub(r"'s$|'$", "", name)  # strip possessives
+    name = re.sub(r"[^a-zA-Z0-9]", "_", name)
+    return name.strip("_").lower()
+
+
+def build_chat_prompt(document_type: str, variables: list[str]) -> str:
+    """Generate a conversational AI system prompt for a given document type."""
+    var_list = "\n".join(f"- {v}" for v in variables) if variables else "(no specific fields required)"
+
+    addendum_note = ""
+    if document_type in _ADDENDUM_TYPES:
+        addendum_note = (
+            "\n\nIMPORTANT: This document is an addendum — it must accompany a primary agreement. "
+            "Begin by explaining this warmly. Ask whether the user has an existing primary agreement "
+            "or would like to create one first. If they already have one, proceed to collect the "
+            "addendum fields. If not, offer to help them create the primary agreement first."
+        )
+
+    return f"""You are a friendly legal document assistant helping users create a {document_type}.
+
+Your job is to have a warm, professional conversation to gather the information needed to complete the document. Ask questions naturally, one topic at a time. Don't overwhelm the user with multiple questions at once.
+
+The document requires this information:
+{var_list}
+
+Start by greeting the user warmly and asking about the parties involved. As they provide information, acknowledge it naturally and ask about the next missing pieces. When everything is gathered, confirm the details are complete and let them know they can download the document.{addendum_note}"""
+
+
+def build_extraction_model(variables: list[str]) -> tuple:
+    """
+    Returns (DynamicModel, key_map) where key_map maps sanitized field names
+    back to the original display names (e.g. 'baa_effective_date' → 'BAA Effective Date').
+    """
+    field_defs: dict = {}
+    key_map: dict[str, str] = {}
+    for v in variables:
+        k = _sanitize_field_name(v)
+        if k and k not in field_defs:
+            field_defs[k] = (Optional[str], None)
+            key_map[k] = v
+    return create_model("FieldExtraction", **field_defs), key_map
+
 
 CHAT_SYSTEM_PROMPT = """You are a friendly legal document assistant helping users create a Mutual Non-Disclosure Agreement (Mutual NDA) based on the Common Paper Standard v1.0.
 
@@ -145,6 +201,8 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
+    document_type: str = "Mutual NDA"
+    variables: list[str] = []
 
 
 class NdaFieldExtraction(BaseModel):
@@ -167,8 +225,24 @@ class NdaFieldExtraction(BaseModel):
     party2_address: Optional[str] = None
 
 
-async def generate_chat_stream(messages: list[dict]):
-    conversation = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}] + messages
+async def generate_chat_stream(
+    messages: list[dict],
+    document_type: str = "Mutual NDA",
+    variables: list[str] = [],
+):
+    is_nda = document_type == "Mutual NDA"
+
+    if is_nda:
+        system_prompt = CHAT_SYSTEM_PROMPT
+        extraction_prompt = EXTRACTION_SYSTEM_PROMPT
+        extraction_model = NdaFieldExtraction
+        key_map: dict[str, str] = {}
+    else:
+        system_prompt = build_chat_prompt(document_type, variables)
+        extraction_prompt = GENERIC_EXTRACTION_PROMPT
+        extraction_model, key_map = build_extraction_model(variables)
+
+    conversation = [{"role": "system", "content": system_prompt}] + messages
 
     # Stream the conversational response (async to avoid blocking the event loop)
     response = await acompletion(
@@ -189,7 +263,7 @@ async def generate_chat_stream(messages: list[dict]):
 
     # Extract fields from the completed conversation
     extraction_messages = [
-        {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+        {"role": "system", "content": extraction_prompt},
         *messages,
         {"role": "assistant", "content": full_response},
     ]
@@ -197,16 +271,25 @@ async def generate_chat_stream(messages: list[dict]):
     field_response = await acompletion(
         model=MODEL,
         messages=extraction_messages,
-        response_format=NdaFieldExtraction,
+        response_format=extraction_model,
         reasoning_effort="low",
         extra_body=EXTRA_BODY,
         api_key=OPENROUTER_API_KEY,
     )
 
-    fields = NdaFieldExtraction.model_validate_json(
+    fields = extraction_model.model_validate_json(
         field_response.choices[0].message.content
     )
-    fields_dict = {k: v for k, v in fields.model_dump().items() if v is not None}
+
+    if is_nda:
+        # NDA: emit snake_case keys; frontend maps them to camelCase NdaFormData
+        fields_dict = {k: v for k, v in fields.model_dump().items() if v is not None}
+    else:
+        # Generic: remap sanitized keys back to original display names for template substitution
+        fields_dict = {}
+        for k, v in fields.model_dump().items():
+            if v is not None:
+                fields_dict[key_map.get(k, k)] = v
 
     yield f"data: {json.dumps({'type': 'fields', 'data': fields_dict})}\n\n"
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
@@ -260,7 +343,7 @@ async def health():
 async def chat(req: ChatRequest, _user_id: int = Depends(get_current_user)):
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
     return StreamingResponse(
-        generate_chat_stream(messages),
+        generate_chat_stream(messages, req.document_type, req.variables),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

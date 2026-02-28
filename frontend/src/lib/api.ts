@@ -46,12 +46,12 @@ export interface ChatMessage {
 
 interface ChatStreamCallbacks {
   onToken: (token: string) => void;
-  onFields: (fields: Partial<NdaFormData>) => void;
+  onFields: (fields: Record<string, string>) => void;
   onDone: () => void;
   onError: (error: string) => void;
 }
 
-function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaFormData> {
+export function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaFormData> {
   const fields: Partial<NdaFormData> = {};
   if (data.purpose != null) fields.purpose = data.purpose as string;
   if (data.effective_date != null) fields.effectiveDate = data.effective_date as string;
@@ -75,7 +75,9 @@ function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaFormData
 
 export async function chatStream(
   messages: ChatMessage[],
-  callbacks: ChatStreamCallbacks
+  callbacks: ChatStreamCallbacks,
+  documentType?: string,
+  variables?: string[],
 ): Promise<void> {
   const token = getToken();
   let response: Response;
@@ -86,7 +88,7 @@ export async function chatStream(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, document_type: documentType, variables }),
     });
   } catch (err) {
     callbacks.onError(err instanceof Error ? err.message : "Network error");
@@ -125,7 +127,7 @@ export async function chatStream(
           if (event.type === "token") {
             callbacks.onToken(event.content);
           } else if (event.type === "fields") {
-            callbacks.onFields(mapFieldsToFormData(event.data));
+            callbacks.onFields(event.data as Record<string, string>);
           } else if (event.type === "done") {
             doneReceived = true;
             callbacks.onDone();

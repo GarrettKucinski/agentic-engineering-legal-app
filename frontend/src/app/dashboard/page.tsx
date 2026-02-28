@@ -2,12 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import DashboardClient from "./DashboardClient";
 import ProtectedRoute from "@/components/ProtectedRoute";
-
-interface CatalogEntry {
-  name: string;
-  description: string;
-  filename: string;
-}
+import { CatalogEntry } from "@/lib/types";
 
 function loadCatalog(): CatalogEntry[] {
   try {
