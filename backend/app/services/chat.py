@@ -1,4 +1,3 @@
-import json
 from typing import Optional
 
 from litellm import acompletion
@@ -17,33 +16,37 @@ from app.prompts import (
 from app.utils import build_extraction_model
 
 
-async def generate_chat_stream(
+async def generate_chat_response(
     messages: list[dict],
     document_type: Optional[str] = None,
     variables: list[str] | None = None,
-):
+) -> dict:
+    """
+    Await the full LLM completion, run extraction, and return a single dict.
+
+    Response shape:
+      {
+        "content": str,
+        "fields": dict[str, str],
+        "document_selected": {"name": str, "slug": str} | None,
+      }
+    """
     variables = variables or []
+
     # SELECTION PHASE: no document type set yet
     if document_type is None:
         catalog = load_catalog()
         system_prompt = build_selection_prompt(catalog)
         conversation = [{"role": "system", "content": system_prompt}] + messages
 
-        # Stream the conversational response
         response = await acompletion(
             model=MODEL,
             messages=conversation,
-            stream=True,
             reasoning_effort="low",
             extra_body=EXTRA_BODY,
             api_key=OPENROUTER_API_KEY,
         )
-        full_response = ""
-        async for chunk in response:
-            content = chunk.choices[0].delta.content or ""
-            if content:
-                full_response += content
-                yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+        full_response = response.choices[0].message.content or ""
 
         # Extract which document was selected
         extraction_messages = [
@@ -63,19 +66,22 @@ async def generate_chat_stream(
             sel_response.choices[0].message.content
         )
 
+        document_selected = None
         if selection.selected_document_name:
-            # Find the catalog entry to get the slug
             catalog_entry = next(
                 (e for e in catalog if e["name"] == selection.selected_document_name), None
             )
             if catalog_entry:
                 slug = catalog_entry["filename"].removesuffix(".md")
-                yield f"data: {json.dumps({'type': 'document_selected', 'name': selection.selected_document_name, 'slug': slug})}\n\n"
+                document_selected = {"name": selection.selected_document_name, "slug": slug}
 
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-        return
+        return {
+            "content": full_response,
+            "fields": {},
+            "document_selected": document_selected,
+        }
 
-    # FIELD COLLECTION PHASE: document type is known (existing logic, unchanged)
+    # FIELD COLLECTION PHASE: document type is known
     # Use the NDA-specific path only for the direct /nda route (no variables provided).
     # The intent-driven dashboard always supplies variables, so it uses the generic path
     # which maps field names back to template display names via key_map.
@@ -93,22 +99,14 @@ async def generate_chat_stream(
 
     conversation = [{"role": "system", "content": system_prompt}] + messages
 
-    # Stream the conversational response (async to avoid blocking the event loop)
     response = await acompletion(
         model=MODEL,
         messages=conversation,
-        stream=True,
         reasoning_effort="low",
         extra_body=EXTRA_BODY,
         api_key=OPENROUTER_API_KEY,
     )
-
-    full_response = ""
-    async for chunk in response:
-        content = chunk.choices[0].delta.content or ""
-        if content:
-            full_response += content
-            yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+    full_response = response.choices[0].message.content or ""
 
     # Extract fields from the completed conversation
     extraction_messages = [
@@ -140,5 +138,8 @@ async def generate_chat_stream(
             if v is not None:
                 fields_dict[key_map.get(k, k)] = v
 
-    yield f"data: {json.dumps({'type': 'fields', 'data': fields_dict})}\n\n"
-    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    return {
+        "content": full_response,
+        "fields": fields_dict,
+        "document_selected": None,
+    }

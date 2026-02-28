@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { chatStream, ChatMessage } from "@/lib/api";
+import { chatRequest, ChatMessage } from "@/lib/api";
 import { renderMarkdown } from "@/lib/markdown";
 
 interface AiChatProps {
@@ -18,46 +18,78 @@ export default function AiChat({
   variables,
 }: AiChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  // Phase 1: empty string = pulsing cursor while waiting; null = not in-flight
+  // Phase 2: string with content = typewriter reveal
+  const [typingContent, setTypingContent] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasGreeted = useRef(false);
+  const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (typingIntervalRef.current !== null) {
+        clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, []);
 
   const sendToApi = useCallback(
     async (apiMessages: ChatMessage[]) => {
+      // Phase 1: show pulsing cursor while waiting
       setIsStreaming(true);
-      setStreamingContent("");
+      setTypingContent("");
       setError(null);
-      let accumulated = "";
 
-      await chatStream(
-        apiMessages,
-        {
-          onToken: (token) => {
-            accumulated += token;
-            setStreamingContent(accumulated);
-          },
-          onFields: onFieldsUpdate,
-          onDocumentSelected: (name, slug) => onDocumentSelected?.(name, slug),
-          onDone: () => {
-            setMessages((prev) => [
-              ...prev,
-              { role: "assistant", content: accumulated },
-            ]);
-            setStreamingContent(null);
-            setIsStreaming(false);
-          },
-          onError: (err) => {
-            setError(err);
-            setStreamingContent(null);
-            setIsStreaming(false);
-          },
-        },
-        documentType,
-        variables,
-      );
+      let response;
+      try {
+        response = await chatRequest(apiMessages, documentType, variables);
+      } catch (err) {
+        setTypingContent(null);
+        setIsStreaming(false);
+        setError(err instanceof Error ? err.message : "Network error");
+        return;
+      }
+
+      const { content, fields, document_selected } = response;
+
+      // Apply fields and document selection at the START of reveal
+      if (fields && Object.keys(fields).length > 0) {
+        onFieldsUpdate(fields);
+      }
+      if (document_selected) {
+        onDocumentSelected?.(document_selected.name, document_selected.slug);
+      }
+
+      // Phase 2: typewriter reveal
+      const delay = Math.max(8, Math.min(25, 3000 / (content.length || 1)));
+      let charIndex = 0;
+
+      // Clear any existing interval
+      if (typingIntervalRef.current !== null) {
+        clearInterval(typingIntervalRef.current);
+      }
+
+      typingIntervalRef.current = setInterval(() => {
+        charIndex++;
+        const revealed = content.slice(0, charIndex);
+        setTypingContent(revealed);
+
+        if (charIndex >= content.length) {
+          clearInterval(typingIntervalRef.current!);
+          typingIntervalRef.current = null;
+          // Move revealed content into messages, clear typing state
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content },
+          ]);
+          setTypingContent(null);
+          setIsStreaming(false);
+        }
+      }, delay);
     },
     [onFieldsUpdate, onDocumentSelected, documentType, variables]
   );
@@ -72,7 +104,7 @@ export default function AiChat({
   // Auto-scroll to the latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+  }, [messages, typingContent]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,9 +134,9 @@ export default function AiChat({
           <MessageBubble key={i} message={msg} />
         ))}
 
-        {streamingContent !== null && (
+        {typingContent !== null && (
           <MessageBubble
-            message={{ role: "assistant", content: streamingContent }}
+            message={{ role: "assistant", content: typingContent }}
             isStreaming
           />
         )}
