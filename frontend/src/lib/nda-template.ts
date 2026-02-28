@@ -1,5 +1,12 @@
 import { NdaFormData } from "./types";
 
+/**
+ * The URL slug for the Mutual NDA Cover Page template.
+ * Derived from catalog.json entry filename "Mutual-NDA-coverpage.md".
+ * Used by NdaCreator to offer the cover page addendum after NDA completion.
+ */
+export const ndaCoverPageSlug = "Mutual-NDA-coverpage";
+
 export function formatDate(dateStr: string): string {
   if (!dateStr) return "________";
   const date = new Date(dateStr + "T00:00:00");

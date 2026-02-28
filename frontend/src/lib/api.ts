@@ -50,14 +50,36 @@ export interface ChatResponse {
   document_selected: { name: string; slug: string } | null;
 }
 
+const NDA_FORM_KEYS = new Set<keyof NdaFormData>([
+  "purpose",
+  "effectiveDate",
+  "mndaTermType",
+  "mndaTermYears",
+  "confidentialityTermType",
+  "confidentialityTermYears",
+  "governingLaw",
+  "jurisdiction",
+  "modifications",
+  "party1Name",
+  "party1Title",
+  "party1Company",
+  "party1Address",
+  "party2Name",
+  "party2Title",
+  "party2Company",
+  "party2Address",
+]);
+
 export function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaFormData> {
-  const result: Record<string, unknown> = {};
+  const result: Partial<NdaFormData> = {};
 
   for (const [key, value] of Object.entries(data)) {
     if (!value) continue;
-    const camelKey = key.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+    const camelKey = key.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase()) as keyof NdaFormData;
 
-    result[camelKey] = value;
+    if (NDA_FORM_KEYS.has(camelKey)) {
+      (result as Record<string, unknown>)[camelKey] = value;
+    }
   }
 
   return result;
