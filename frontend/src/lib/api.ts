@@ -44,12 +44,10 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface ChatStreamCallbacks {
-  onToken: (token: string) => void;
-  onFields: (fields: Record<string, string>) => void;
-  onDocumentSelected: (name: string, slug: string) => void;
-  onDone: () => void;
-  onError: (error: string) => void;
+export interface ChatResponse {
+  content: string;
+  fields: Record<string, string>;
+  document_selected: { name: string; slug: string } | null;
 }
 
 export function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaFormData> {
@@ -65,79 +63,27 @@ export function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaF
   return result;
 }
 
-export async function chatStream(
+export async function chatRequest(
   messages: ChatMessage[],
-  callbacks: ChatStreamCallbacks,
   documentType?: string,
   variables?: string[],
-): Promise<void> {
+): Promise<ChatResponse> {
   const token = getToken();
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ messages, document_type: documentType, variables }),
-    });
-  } catch (err) {
-    callbacks.onError(err instanceof Error ? err.message : "Network error");
-    return;
+  const res = await fetch(`${API_BASE}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ messages, document_type: documentType, variables }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `HTTP ${res.status}`);
   }
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    callbacks.onError(body.detail ?? `HTTP ${response.status}`);
-    return;
-  }
-
-  if (!response.body) {
-    callbacks.onError("Response has no body");
-    return;
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let doneReceived = false;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        try {
-          const event = JSON.parse(line.slice(6));
-          if (event.type === "token") {
-            callbacks.onToken(event.content);
-          } else if (event.type === "fields") {
-            callbacks.onFields(event.data as Record<string, string>);
-          } else if (event.type === "document_selected") {
-            callbacks.onDocumentSelected(event.name as string, event.slug as string);
-          } else if (event.type === "done") {
-            doneReceived = true;
-            callbacks.onDone();
-          }
-        } catch {
-          // ignore malformed SSE lines
-        }
-      }
-    }
-    // If the stream closed without a "done" event, signal completion anyway
-    if (!doneReceived) {
-      callbacks.onDone();
-    }
-  } catch (err) {
-    callbacks.onError(err instanceof Error ? err.message : "Stream error");
-  }
+  return res.json();
 }
 
 export interface TemplateData {
