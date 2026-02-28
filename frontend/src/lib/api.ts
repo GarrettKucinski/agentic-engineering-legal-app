@@ -107,3 +107,44 @@ export async function fetchTemplate(slug: string): Promise<TemplateData> {
   }
   return res.json();
 }
+
+export interface DocumentSummary {
+  id: number;
+  title: string;
+  slug: string;
+  created_at: string;
+}
+
+export interface DocumentDetail extends DocumentSummary {
+  fields: Record<string, string>;
+}
+
+function authFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
+  return apiFetch<T>(path, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options?.headers as Record<string, string> | undefined),
+    },
+  });
+}
+
+export function fetchDocuments(): Promise<DocumentSummary[]> {
+  return authFetch<DocumentSummary[]>("/api/documents");
+}
+
+export function saveDocument(
+  title: string,
+  slug: string,
+  fields: Record<string, string>,
+): Promise<DocumentSummary> {
+  return authFetch<DocumentSummary>("/api/documents", {
+    method: "POST",
+    body: JSON.stringify({ title, slug, fields }),
+  });
+}
+
+export function fetchDocument(id: number): Promise<DocumentDetail> {
+  return authFetch<DocumentDetail>(`/api/documents/${id}`);
+}

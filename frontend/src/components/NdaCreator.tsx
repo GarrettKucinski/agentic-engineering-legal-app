@@ -77,10 +77,12 @@ export default function NdaCreator({ standardTermsTemplate }: NdaCreatorProps) {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Mutual NDA Creator
-            </h1>
-            <p className="text-sm text-gray-500">
+            <div className="flex items-center gap-3">
+              <a href="/dashboard" className="text-lg font-bold hover:opacity-80 transition-opacity" style={{ color: "#032147" }}>LegalDraft</a>
+              <span className="text-gray-300">/</span>
+              <h1 className="text-base font-semibold text-gray-700">Mutual NDA</h1>
+            </div>
+            <p className="text-sm text-gray-400 mt-0.5">
               Based on Common Paper Mutual NDA Standard Terms v1.0
             </p>
           </div>

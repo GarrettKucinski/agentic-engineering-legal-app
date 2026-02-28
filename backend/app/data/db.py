@@ -21,6 +21,15 @@ def init_db() -> None:
                 password_hash TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                title TEXT NOT NULL,
+                slug TEXT NOT NULL,
+                fields TEXT NOT NULL DEFAULT '{}',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
         """)
         conn.commit()
     finally:
