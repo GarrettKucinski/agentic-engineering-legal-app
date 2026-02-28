@@ -44,33 +44,25 @@ export interface ChatMessage {
   content: string;
 }
 
-interface ChatStreamCallbacks {
+export interface ChatStreamCallbacks {
   onToken: (token: string) => void;
   onFields: (fields: Record<string, string>) => void;
+  onDocumentSelected: (name: string, slug: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
 }
 
 export function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaFormData> {
-  const fields: Partial<NdaFormData> = {};
-  if (data.purpose != null) fields.purpose = data.purpose as string;
-  if (data.effective_date != null) fields.effectiveDate = data.effective_date as string;
-  if (data.mnda_term_type != null) fields.mndaTermType = data.mnda_term_type as "expires" | "untilTerminated";
-  if (data.mnda_term_years != null) fields.mndaTermYears = data.mnda_term_years as number;
-  if (data.confidentiality_term_type != null) fields.confidentialityTermType = data.confidentiality_term_type as "duration" | "perpetuity";
-  if (data.confidentiality_term_years != null) fields.confidentialityTermYears = data.confidentiality_term_years as number;
-  if (data.governing_law != null) fields.governingLaw = data.governing_law as string;
-  if (data.jurisdiction != null) fields.jurisdiction = data.jurisdiction as string;
-  if (data.modifications != null) fields.modifications = data.modifications as string;
-  if (data.party1_name != null) fields.party1Name = data.party1_name as string;
-  if (data.party1_title != null) fields.party1Title = data.party1_title as string;
-  if (data.party1_company != null) fields.party1Company = data.party1_company as string;
-  if (data.party1_address != null) fields.party1Address = data.party1_address as string;
-  if (data.party2_name != null) fields.party2Name = data.party2_name as string;
-  if (data.party2_title != null) fields.party2Title = data.party2_title as string;
-  if (data.party2_company != null) fields.party2Company = data.party2_company as string;
-  if (data.party2_address != null) fields.party2Address = data.party2_address as string;
-  return fields;
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    if (!value) continue;
+    const camelKey = key.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+
+    result[camelKey] = value;
+  }
+
+  return result;
 }
 
 export async function chatStream(
@@ -128,6 +120,8 @@ export async function chatStream(
             callbacks.onToken(event.content);
           } else if (event.type === "fields") {
             callbacks.onFields(event.data as Record<string, string>);
+          } else if (event.type === "document_selected") {
+            callbacks.onDocumentSelected(event.name as string, event.slug as string);
           } else if (event.type === "done") {
             doneReceived = true;
             callbacks.onDone();
@@ -144,4 +138,26 @@ export async function chatStream(
   } catch (err) {
     callbacks.onError(err instanceof Error ? err.message : "Stream error");
   }
+}
+
+export interface TemplateData {
+  name: string;
+  description: string;
+  filename: string;
+  template_markdown: string;
+  variables: string[];
+}
+
+export async function fetchTemplate(slug: string): Promise<TemplateData> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/api/templates/${slug}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `HTTP ${res.status}`);
+  }
+  return res.json();
 }

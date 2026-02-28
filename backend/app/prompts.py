@@ -1,4 +1,30 @@
+# These must match the "name" field in catalog.json exactly.
+# If addendum documents are added or renamed in the catalog, update this set too.
 _ADDENDUM_TYPES = {"AI Addendum", "Mutual NDA Cover Page"}
+
+def build_selection_extraction_prompt(catalog: list[dict]) -> str:
+    names = "\n".join(f"- {entry['name']}" for entry in catalog)
+    return f"""You are a document selection assistant. Based on the conversation, identify which document template the user wants to create.
+
+Available document names (use EXACTLY one of these, or null):
+{names}
+
+Rules:
+- Return the exact document name from the list above if the user has clearly indicated one
+- Return null if the user has not yet committed to a specific document type"""
+
+
+def build_selection_prompt(catalog: list[dict]) -> str:
+    """Generate a system prompt for the document selection phase."""
+    doc_list = "\n".join(f"- {entry['name']}: {entry['description']}" for entry in catalog)
+    return f"""You are a friendly legal document assistant. Your job is to understand what kind of document the user needs and help them get started.
+
+Available document templates:
+{doc_list}
+
+Start by greeting the user warmly and asking what kind of document they need today. Listen to their description and identify the best matching template. When you believe you've identified the right document, confirm it with the user (e.g. "It sounds like you need a Mutual NDA — does that sound right?"). Keep the conversation natural and helpful.
+
+Important: Some documents are addendums (AI Addendum, Mutual NDA Cover Page) — these must accompany a primary agreement. If the user seems to need one of these, let them know and ask if they already have the primary agreement."""
 
 GENERIC_EXTRACTION_PROMPT = """You are a field extraction assistant. Extract field values from the conversation below.
 
@@ -28,7 +54,7 @@ Your job is to have a warm, professional conversation to gather the information 
 The document requires this information:
 {var_list}
 
-Start by greeting the user warmly and asking about the parties involved. As they provide information, acknowledge it naturally and ask about the next missing pieces. When everything is gathered, confirm the details are complete and let them know they can download the document.{addendum_note}"""
+If the conversation is just starting, greet the user warmly and ask about the parties involved. If a document type has already been confirmed in the conversation, skip the introduction and proceed directly to gathering the required fields. As they provide information, acknowledge it naturally and ask about the next missing pieces. When everything is gathered, confirm the details are complete and let them know they can download the document.{addendum_note}"""
 
 
 CHAT_SYSTEM_PROMPT = """You are a friendly legal document assistant helping users create a Mutual Non-Disclosure Agreement (Mutual NDA) based on the Common Paper Standard v1.0.

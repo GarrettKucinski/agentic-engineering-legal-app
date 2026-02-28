@@ -18,3 +18,6 @@ STATIC_DIR = os.getenv("STATIC_DIR", "frontend/out")
 
 MODEL = "openrouter/openai/gpt-oss-120b"
 EXTRA_BODY = {"provider": {"order": ["Cerebras"]}}
+
+CATALOG_PATH = os.getenv("CATALOG_PATH", "../catalog.json")
+TEMPLATES_DIR = os.getenv("TEMPLATES_DIR", "../templates")

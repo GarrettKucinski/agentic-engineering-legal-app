@@ -22,7 +22,6 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-ENV SECRET_KEY="boogieboogiebooboo"
 # Install uv for fast dependency installation
 RUN pip install uv --no-cache-dir
 
@@ -30,12 +29,20 @@ RUN pip install uv --no-cache-dir
 COPY backend/pyproject.toml ./
 RUN uv pip install --system .
 
-# Copy backend source (overwrites pyproject.toml + adds main.py, db.py)
+# Copy backend source (app/ package, tests/, pyproject.toml)
 COPY backend/ ./
 
 # Copy static frontend from build stage
 COPY --from=frontend-build /app/frontend/out ./frontend/out
 
+# Copy catalog and templates for backend document selection + template serving
+COPY catalog.json ./catalog.json
+COPY templates/ ./templates/
+
+# Set catalog and template paths for the Docker runtime
+ENV CATALOG_PATH="./catalog.json"
+ENV TEMPLATES_DIR="./templates"
+
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
