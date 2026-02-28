@@ -3,10 +3,9 @@ Unit tests for pure utility functions in main.py.
 These tests have no external dependencies (no DB, no LLM calls).
 """
 import pytest
+from utils import _sanitize_field_name, build_extraction_model
 from main import (
-    _sanitize_field_name,
     build_chat_prompt,
-    build_extraction_model,
     verify_password,
     _ADDENDUM_TYPES,
 )

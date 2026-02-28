@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -15,9 +14,10 @@ from jose import jwt
 from litellm import acompletion
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from pydantic import BaseModel, create_model, field_validator
+from pydantic import BaseModel, field_validator
 
 from db import get_connection, init_db
+from utils import _sanitize_field_name, build_extraction_model
 
 load_dotenv()
 
@@ -55,13 +55,6 @@ Rules:
 - Leave as null if a field was not mentioned or is unclear"""
 
 
-def _sanitize_field_name(name: str) -> str:
-    """Convert a display name like 'BAA Effective Date' to a valid Python identifier."""
-    name = re.sub(r"'s$|'$", "", name)  # strip possessives
-    name = re.sub(r"[^a-zA-Z0-9]", "_", name)
-    return name.strip("_").lower()
-
-
 def build_chat_prompt(document_type: str, variables: list[str]) -> str:
     """Generate a conversational AI system prompt for a given document type."""
     var_list = "\n".join(f"- {v}" for v in variables) if variables else "(no specific fields required)"
@@ -83,21 +76,6 @@ The document requires this information:
 {var_list}
 
 Start by greeting the user warmly and asking about the parties involved. As they provide information, acknowledge it naturally and ask about the next missing pieces. When everything is gathered, confirm the details are complete and let them know they can download the document.{addendum_note}"""
-
-
-def build_extraction_model(variables: list[str]) -> tuple:
-    """
-    Returns (DynamicModel, key_map) where key_map maps sanitized field names
-    back to the original display names (e.g. 'baa_effective_date' → 'BAA Effective Date').
-    """
-    field_defs: dict = {}
-    key_map: dict[str, str] = {}
-    for v in variables:
-        k = _sanitize_field_name(v)
-        if k and k not in field_defs:
-            field_defs[k] = (Optional[str], None)
-            key_map[k] = v
-    return create_model("FieldExtraction", **field_defs), key_map
 
 
 CHAT_SYSTEM_PROMPT = """You are a friendly legal document assistant helping users create a Mutual Non-Disclosure Agreement (Mutual NDA) based on the Common Paper Standard v1.0.
