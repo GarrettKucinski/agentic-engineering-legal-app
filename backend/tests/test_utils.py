@@ -3,9 +3,16 @@ Unit tests for pure utility functions.
 These tests have no external dependencies (no DB, no LLM calls).
 """
 import pytest
-from app.utils import _sanitize_field_name, build_extraction_model
-from app.prompts import build_chat_prompt, _ADDENDUM_TYPES
-from app.services.auth import verify_password
+from utils import _sanitize_field_name, build_extraction_model
+from main import (
+    _sanitize_field_name,
+    build_extraction_model,
+    verify_password,
+)
+from prompts import (
+    _ADDENDUM_TYPES,
+    build_chat_prompt,
+)
 from argon2 import PasswordHasher
 
 ph = PasswordHasher()
