@@ -36,6 +36,10 @@ COPY backend/ ./
 # Copy static frontend from build stage
 COPY --from=frontend-build /app/frontend/out ./frontend/out
 
+# Copy catalog and templates for backend document selection + template serving
+COPY catalog.json ./catalog.json
+COPY templates/ ./templates/
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
