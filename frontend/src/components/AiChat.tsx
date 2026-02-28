@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { chatStream, ChatMessage } from "@/lib/api";
+import { renderMarkdown } from "@/lib/markdown";
 
 interface AiChatProps {
   onFieldsUpdate: (fields: Record<string, string>) => void;
@@ -160,7 +161,15 @@ function MessageBubble({
             : "bg-gray-100 text-gray-800 rounded-bl-sm"
         }`}
       >
-        {message.content}
+        {isUser ? (
+          message.content
+        ) : (
+          // Content is sanitized by DOMPurify inside renderMarkdown
+          <div
+            className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+          />
+        )}
         {isStreaming && (
           <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current animate-pulse rounded-sm align-middle opacity-70" />
         )}
