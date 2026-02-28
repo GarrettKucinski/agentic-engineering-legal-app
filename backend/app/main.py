@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import STATIC_DIR
 from app.data.db import init_db
-from app.routes import auth, chat, health, templates
+from app.routes import auth, chat, documents, health, templates
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(templates.router)
+app.include_router(documents.router)
 
 # Mount static frontend LAST so API routes take priority
 if os.path.isdir(STATIC_DIR):

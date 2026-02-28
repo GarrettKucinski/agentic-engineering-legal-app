@@ -3,11 +3,12 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearToken } from "@/lib/auth";
-import { fetchTemplate, TemplateData } from "@/lib/api";
+import { fetchTemplate, fetchDocument, saveDocument, TemplateData, DocumentSummary } from "@/lib/api";
 import { resolveTemplate, filenameToSlug } from "@/lib/doc-template";
 import AiChat from "@/components/AiChat";
 import DocPreview from "@/components/DocPreview";
 import DocPlaceholder from "@/components/DocPlaceholder";
+import DocumentHistory from "@/components/DocumentHistory";
 
 export default function DashboardClient() {
   const router = useRouter();
@@ -17,6 +18,11 @@ export default function DashboardClient() {
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<number | null>(null);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   function handleLogout() {
     clearToken();
@@ -91,9 +97,26 @@ export default function DashboardClient() {
     }
   }, [templateData, fields]);
 
+  const handleSaveDocument = useCallback(async () => {
+    if (!templateData) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const slug = filenameToSlug(templateData.filename);
+      const saved = await saveDocument(templateData.name, slug, fields);
+      setSavedId(saved.id);
+      setHistoryRefresh((n) => n + 1);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save document");
+    } finally {
+      setSaving(false);
+    }
+  }, [templateData, fields]);
+
   const handleDocumentSelected = useCallback(async (_name: string, slug: string) => {
     setLoadingTemplate(true);
     setTemplateError(null);
+    setSavedId(null);
     try {
       const data = await fetchTemplate(slug);
       setTemplateData(data);
@@ -105,61 +128,121 @@ export default function DashboardClient() {
     }
   }, []);
 
+  const handleOpenSavedDoc = useCallback(async (doc: DocumentSummary) => {
+    setLoadingTemplate(true);
+    setTemplateError(null);
+    setSavedId(doc.id);
+    setSidebarOpen(false);
+    try {
+      const detail = await fetchDocument(doc.id);
+      const templateResult = await fetchTemplate(doc.slug);
+      setTemplateData(templateResult);
+      setFields(detail.fields);
+    } catch (err) {
+      setTemplateError(err instanceof Error ? err.message : "Failed to load document");
+    } finally {
+      setLoadingTemplate(false);
+    }
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: "#032147" }}>
-              LegalDraft
-            </h1>
-            {templateData && (
-              <p className="text-sm text-gray-500">{templateData.description}</p>
-            )}
-          </div>
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
+            {/* Mobile sidebar toggle */}
+            <button
+              className="lg:hidden p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              onClick={() => setSidebarOpen((v) => !v)}
+              aria-label="Toggle document history"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <span className="text-lg font-bold" style={{ color: "#032147" }}>LegalDraft</span>
+              {templateData && (
+                <span className="ml-3 text-sm text-gray-400 hidden sm:inline">{templateData.name}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
             {templateData && (
-              <div className="flex flex-col items-end gap-1">
-                <div className="flex gap-3">
-                  <button
-                    onClick={downloadMarkdown}
-                    className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {savedId ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-2.5 py-1.5">
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Markdown
-                  </button>
+                    Saved
+                  </span>
+                ) : (
                   <button
-                    onClick={downloadPdf}
-                    disabled={pdfLoading}
-                    className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={handleSaveDocument}
+                    disabled={saving}
+                    className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
                   >
-                    {pdfLoading ? (
+                    {saving ? (
                       <>
-                        <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        Generating PDF...
+                        Saving…
                       </>
                     ) : (
                       <>
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                         </svg>
-                        Download PDF
+                        Save
                       </>
                     )}
                   </button>
-                </div>
-                {pdfError && <p className="text-xs text-red-600">{pdfError}</p>}
+                )}
+                <button
+                  onClick={downloadMarkdown}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="hidden sm:inline">Markdown</span>
+                </button>
+                <button
+                  onClick={downloadPdf}
+                  disabled={pdfLoading}
+                  className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: "#209dd7" }}
+                >
+                  {pdfLoading ? (
+                    <>
+                      <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span className="hidden sm:inline">Generating…</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="hidden sm:inline">Download PDF</span>
+                      <span className="sm:hidden">PDF</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
+            {saveError && <p className="text-xs text-red-600">{saveError}</p>}
+            {pdfError && <p className="text-xs text-red-600">{pdfError}</p>}
             <button
               onClick={handleLogout}
-              className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+              className="text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors whitespace-nowrap"
             >
               Sign Out
             </button>
@@ -167,52 +250,74 @@ export default function DashboardClient() {
         </div>
       </header>
 
-      {/* Two-column layout */}
-      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: AI Chat */}
-          <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-4">
-            <div
-              className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 flex flex-col"
-              style={{ minHeight: "calc(100vh - 10rem)" }}
-            >
-              <AiChat
-                onFieldsUpdate={handleFieldsUpdate}
-                onDocumentSelected={handleDocumentSelected}
-                documentType={templateData?.name}
-                variables={templateData?.variables}
-              />
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-30 flex">
+          <div className="fixed inset-0 bg-black/30" onClick={() => setSidebarOpen(false)} />
+          <div className="relative z-40 w-72 bg-white border-r border-gray-200 p-5 overflow-y-auto">
+            <DocumentHistory onOpen={handleOpenSavedDoc} refreshTrigger={historyRefresh} />
+          </div>
+        </div>
+      )}
+
+      {/* Main content with sidebar */}
+      <div className="flex-1 max-w-screen-2xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex gap-6 h-full">
+          {/* Left sidebar: Document history (desktop) */}
+          <div className="hidden lg:block w-56 xl:w-64 flex-shrink-0">
+            <div className="sticky top-20 bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+              <DocumentHistory onOpen={handleOpenSavedDoc} refreshTrigger={historyRefresh} />
             </div>
           </div>
 
-          {/* Right: Document preview or placeholder */}
-          <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            {templateError && (
-              <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 mb-4">
-                {templateError}
-              </div>
-            )}
-            {loadingTemplate ? (
-              <div
-                className="nda-document flex items-center justify-center"
-                style={{ minHeight: "calc(100vh - 10rem)" }}
-              >
-                <div className="flex flex-col items-center gap-3 text-gray-400">
-                  <svg className="h-8 w-8 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  <span className="text-sm">Loading template…</span>
+          {/* Main two-column content */}
+          <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left: AI Chat */}
+              <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-2">
+                <div
+                  className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 flex flex-col"
+                  style={{ minHeight: "calc(100vh - 10rem)" }}
+                >
+                  <AiChat
+                    onFieldsUpdate={handleFieldsUpdate}
+                    onDocumentSelected={handleDocumentSelected}
+                    documentType={templateData?.name}
+                    variables={templateData?.variables}
+                  />
                 </div>
               </div>
-            ) : templateData ? (
-              <DocPreview
-                templateMarkdown={templateData.template_markdown}
-                fields={fields}
-              />
-            ) : (
-              <DocPlaceholder />
-            )}
+
+              {/* Right: Document preview or placeholder */}
+              <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+                {templateError && (
+                  <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 mb-4">
+                    {templateError}
+                  </div>
+                )}
+                {loadingTemplate ? (
+                  <div
+                    className="bg-white rounded-lg border border-gray-200 shadow-sm flex items-center justify-center"
+                    style={{ minHeight: "calc(100vh - 10rem)" }}
+                  >
+                    <div className="flex flex-col items-center gap-3 text-gray-400">
+                      <svg className="h-8 w-8 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span className="text-sm">Loading template…</span>
+                    </div>
+                  </div>
+                ) : templateData ? (
+                  <DocPreview
+                    templateMarkdown={templateData.template_markdown}
+                    fields={fields}
+                  />
+                ) : (
+                  <DocPlaceholder />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
