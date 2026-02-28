@@ -5,10 +5,12 @@ These tests have no external dependencies (no DB, no LLM calls).
 import pytest
 from main import (
     _sanitize_field_name,
-    build_chat_prompt,
     build_extraction_model,
     verify_password,
+)
+from prompts import (
     _ADDENDUM_TYPES,
+    build_chat_prompt,
 )
 from argon2 import PasswordHasher
 
