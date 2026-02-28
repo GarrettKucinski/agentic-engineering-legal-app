@@ -10,8 +10,12 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
-    document_type: str = "Mutual NDA"
+    document_type: Optional[str] = None
     variables: list[str] = []
+
+
+class DocumentSelectionExtraction(BaseModel):
+    selected_document_name: Optional[str] = None
 
 
 class NdaFieldExtraction(BaseModel):
