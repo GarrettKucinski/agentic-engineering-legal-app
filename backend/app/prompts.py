@@ -54,7 +54,7 @@ Your job is to have a warm, professional conversation to gather the information 
 The document requires this information:
 {var_list}
 
-Start by greeting the user warmly and asking about the parties involved. As they provide information, acknowledge it naturally and ask about the next missing pieces. When everything is gathered, confirm the details are complete and let them know they can download the document.{addendum_note}"""
+If the conversation is just starting, greet the user warmly and ask about the parties involved. If a document type has already been confirmed in the conversation, skip the introduction and proceed directly to gathering the required fields. As they provide information, acknowledge it naturally and ask about the next missing pieces. When everything is gathered, confirm the details are complete and let them know they can download the document.{addendum_note}"""
 
 
 CHAT_SYSTEM_PROMPT = """You are a friendly legal document assistant helping users create a Mutual Non-Disclosure Agreement (Mutual NDA) based on the Common Paper Standard v1.0.

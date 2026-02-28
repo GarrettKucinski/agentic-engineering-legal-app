@@ -76,7 +76,10 @@ async def generate_chat_stream(
         return
 
     # FIELD COLLECTION PHASE: document type is known (existing logic, unchanged)
-    is_nda = document_type == "Mutual NDA"
+    # Use the NDA-specific path only for the direct /nda route (no variables provided).
+    # The intent-driven dashboard always supplies variables, so it uses the generic path
+    # which maps field names back to template display names via key_map.
+    is_nda = document_type == "Mutual NDA" and not variables
 
     if is_nda:
         system_prompt = CHAT_SYSTEM_PROMPT
