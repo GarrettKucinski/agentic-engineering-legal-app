@@ -25,6 +25,7 @@ export default function AiChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const hasGreeted = useRef(false);
   const typingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -88,6 +89,7 @@ export default function AiChat({
           ]);
           setTypingContent(null);
           setIsStreaming(false);
+          inputRef.current?.focus();
         }
       }, delay);
     },
@@ -156,6 +158,7 @@ export default function AiChat({
         className="flex gap-2 pt-4 border-t border-gray-200 mt-4"
       >
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}

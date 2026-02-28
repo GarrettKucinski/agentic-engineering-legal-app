@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import { NdaFormData, defaultFormData } from "@/lib/types";
-import { generateFullMarkdown, resolveStandardTerms } from "@/lib/nda-template";
+import { generateFullMarkdown, resolveStandardTerms, ndaCoverPageSlug } from "@/lib/nda-template";
 import { mapFieldsToFormData } from "@/lib/api";
 import AiChat from "./AiChat";
 import NdaPreview from "./NdaPreview";
@@ -13,6 +14,7 @@ interface NdaCreatorProps {
 
 export default function NdaCreator({ standardTermsTemplate }: NdaCreatorProps) {
   const [formData, setFormData] = useState<NdaFormData>(defaultFormData);
+  const [coverPageDismissed, setCoverPageDismissed] = useState(false);
   const handleFieldsUpdate = useCallback(
     (fields: Record<string, string>) =>
       setFormData((prev) => ({ ...prev, ...mapFieldsToFormData(fields) })),
@@ -20,6 +22,11 @@ export default function NdaCreator({ standardTermsTemplate }: NdaCreatorProps) {
   );
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+
+  // Show the cover page offer once at least one party name has been populated
+  const showCoverPageOffer =
+    !coverPageDismissed &&
+    (!!formData.party1Company || !!formData.party2Company);
 
   const downloadMarkdown = useCallback(() => {
     const markdown = generateFullMarkdown(standardTermsTemplate, formData);
@@ -135,11 +142,56 @@ export default function NdaCreator({ standardTermsTemplate }: NdaCreatorProps) {
             </div>
           </div>
 
-          <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+          <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto space-y-4">
             <NdaPreview
               standardTermsTemplate={standardTermsTemplate}
               data={formData}
             />
+            {showCoverPageOffer && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                <svg
+                  className="h-5 w-5 text-amber-600 mt-0.5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-900">
+                    Need a standalone Cover Page?
+                  </p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    The PDF above includes the cover page. You can also generate a
+                    standalone cover page that references the Common Paper Standard
+                    Terms by URL — ideal for signing separately.
+                  </p>
+                  <Link
+                    href={`/doc/${ndaCoverPageSlug}`}
+                    className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-amber-800 hover:text-amber-900 underline underline-offset-2"
+                  >
+                    Create standalone MNDA Cover Page
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+                <button
+                  onClick={() => setCoverPageDismissed(true)}
+                  aria-label="Dismiss cover page offer"
+                  className="text-amber-400 hover:text-amber-600 shrink-0"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
