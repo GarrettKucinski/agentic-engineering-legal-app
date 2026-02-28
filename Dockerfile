@@ -30,7 +30,7 @@ RUN pip install uv --no-cache-dir
 COPY backend/pyproject.toml ./
 RUN uv pip install --system .
 
-# Copy backend source (overwrites pyproject.toml + adds main.py, db.py)
+# Copy backend source (app/ package, tests/, pyproject.toml)
 COPY backend/ ./
 
 # Copy static frontend from build stage
@@ -38,4 +38,4 @@ COPY --from=frontend-build /app/frontend/out ./frontend/out
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

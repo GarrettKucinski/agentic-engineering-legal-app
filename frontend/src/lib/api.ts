@@ -52,25 +52,16 @@ interface ChatStreamCallbacks {
 }
 
 export function mapFieldsToFormData(data: Record<string, unknown>): Partial<NdaFormData> {
-  const fields: Partial<NdaFormData> = {};
-  if (data.purpose != null) fields.purpose = data.purpose as string;
-  if (data.effective_date != null) fields.effectiveDate = data.effective_date as string;
-  if (data.mnda_term_type != null) fields.mndaTermType = data.mnda_term_type as "expires" | "untilTerminated";
-  if (data.mnda_term_years != null) fields.mndaTermYears = data.mnda_term_years as number;
-  if (data.confidentiality_term_type != null) fields.confidentialityTermType = data.confidentiality_term_type as "duration" | "perpetuity";
-  if (data.confidentiality_term_years != null) fields.confidentialityTermYears = data.confidentiality_term_years as number;
-  if (data.governing_law != null) fields.governingLaw = data.governing_law as string;
-  if (data.jurisdiction != null) fields.jurisdiction = data.jurisdiction as string;
-  if (data.modifications != null) fields.modifications = data.modifications as string;
-  if (data.party1_name != null) fields.party1Name = data.party1_name as string;
-  if (data.party1_title != null) fields.party1Title = data.party1_title as string;
-  if (data.party1_company != null) fields.party1Company = data.party1_company as string;
-  if (data.party1_address != null) fields.party1Address = data.party1_address as string;
-  if (data.party2_name != null) fields.party2Name = data.party2_name as string;
-  if (data.party2_title != null) fields.party2Title = data.party2_title as string;
-  if (data.party2_company != null) fields.party2Company = data.party2_company as string;
-  if (data.party2_address != null) fields.party2Address = data.party2_address as string;
-  return fields;
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    if (!value) continue;
+    const camelKey = key.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+
+    result[camelKey] = value;
+  }
+
+  return result;
 }
 
 export async function chatStream(
