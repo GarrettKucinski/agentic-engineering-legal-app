@@ -44,7 +44,7 @@ export interface ChatMessage {
   content: string;
 }
 
-interface ChatStreamCallbacks {
+export interface ChatStreamCallbacks {
   onToken: (token: string) => void;
   onFields: (fields: Record<string, string>) => void;
   onDocumentSelected: (name: string, slug: string) => void;
