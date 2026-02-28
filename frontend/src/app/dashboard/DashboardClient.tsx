@@ -3,15 +3,10 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { clearToken } from "@/lib/auth";
+import { filenameToSlug } from "@/lib/doc-template";
+import { CatalogEntry } from "@/lib/types";
 
-interface CatalogEntry {
-  name: string;
-  description: string;
-  filename: string;
-}
-
-// Only Mutual NDA is available in the current prototype
-const AVAILABLE = new Set(["Mutual NDA"]);
+const ADDENDUM_TYPES = new Set(["AI Addendum", "Mutual NDA Cover Page"]);
 
 interface Props {
   catalog: CatalogEntry[];
@@ -55,23 +50,25 @@ export default function DashboardClient({ catalog }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {catalog.map((entry) => {
-            const available = AVAILABLE.has(entry.name);
+            const isAddendum = ADDENDUM_TYPES.has(entry.name);
+            const slug = filenameToSlug(entry.filename);
+            const href = entry.name === "Mutual NDA" ? "/nda" : `/doc/${slug}`;
             return (
               <div
                 key={entry.filename}
                 className="bg-white rounded-xl border shadow-sm p-5 flex flex-col gap-3"
-                style={{ borderColor: available ? "#209dd7" : "#e5e7eb" }}
+                style={{ borderColor: "#209dd7" }}
               >
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-sm font-semibold" style={{ color: "#032147" }}>
                     {entry.name}
                   </h3>
-                  {!available && (
+                  {isAddendum && (
                     <span
                       className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "#fff8e7", color: "#b87a00" }}
+                      style={{ backgroundColor: "#e8f4fb", color: "#0d6e9e" }}
                     >
-                      Coming Soon
+                      Addendum
                     </span>
                   )}
                 </div>
@@ -80,15 +77,13 @@ export default function DashboardClient({ catalog }: Props) {
                   {entry.description}
                 </p>
 
-                {available && (
-                  <Link
-                    href="/nda"
-                    className="mt-auto inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: "#209dd7" }}
-                  >
-                    Create →
-                  </Link>
-                )}
+                <Link
+                  href={href}
+                  className="mt-auto inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "#209dd7" }}
+                >
+                  Create →
+                </Link>
               </div>
             );
           })}

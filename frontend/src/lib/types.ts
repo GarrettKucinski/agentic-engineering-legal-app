@@ -1,3 +1,9 @@
+export interface CatalogEntry {
+  name: string;
+  description: string;
+  filename: string;
+}
+
 export interface NdaFormData {
   purpose: string;
   effectiveDate: string;

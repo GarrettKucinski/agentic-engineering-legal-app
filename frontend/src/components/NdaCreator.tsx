@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import { NdaFormData, defaultFormData } from "@/lib/types";
 import { generateFullMarkdown, resolveStandardTerms } from "@/lib/nda-template";
-import NdaForm from "./NdaForm";
+import { mapFieldsToFormData } from "@/lib/api";
+import AiChat from "./AiChat";
 import NdaPreview from "./NdaPreview";
 
 interface NdaCreatorProps {
@@ -12,6 +13,11 @@ interface NdaCreatorProps {
 
 export default function NdaCreator({ standardTermsTemplate }: NdaCreatorProps) {
   const [formData, setFormData] = useState<NdaFormData>(defaultFormData);
+  const handleFieldsUpdate = useCallback(
+    (fields: Record<string, string>) =>
+      setFormData((prev) => ({ ...prev, ...mapFieldsToFormData(fields) })),
+    []
+  );
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -122,8 +128,8 @@ export default function NdaCreator({ standardTermsTemplate }: NdaCreatorProps) {
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-4">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-              <NdaForm data={formData} onChange={setFormData} />
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 h-full flex flex-col" style={{ minHeight: "calc(100vh - 10rem)" }}>
+              <AiChat onFieldsUpdate={handleFieldsUpdate} documentType="Mutual NDA" />
             </div>
           </div>
 
