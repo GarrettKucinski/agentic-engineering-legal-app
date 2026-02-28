@@ -20,11 +20,20 @@ LLM calls use LiteLLM via OpenRouter with Cerebras as the inference provider (`o
 
 ## Technical Design
 ---
-- **Backend:** `backend/` — FastAPI + uv (Python), SQLite (ephemeral, recreated on every container start)
+- **Backend:** `backend/` — FastAPI + uv (Python), SQLite (ephemeral, recreated on every container start — known bug: `init_db` drops tables on every startup, tracked in TES-20)
 - **Frontend:** `frontend/` — Next.js (App Router, `output: "export"`), served by FastAPI `StaticFiles` at `/`
 - **Packaging:** Single Docker container; `docker-compose.yml` with healthcheck
 - **Local dev:** Next.js dev server on port 3000, backend on port 8000 via `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`
 - **Scripts:** `scripts/start-{mac,linux,win}.sh` (default: Docker; `--dev` flag: local processes)
+
+## Testing
+---
+- **Backend:** pytest + pytest-asyncio + httpx — run with `cd backend && uv run pytest`
+  - `tests/test_utils.py` — 28 unit tests (`_sanitize_field_name`, `build_chat_prompt`, `build_extraction_model`, `verify_password`)
+  - `tests/test_api.py` — 11 integration tests (health, auth, chat); LiteLLM mocked with `FakeAsyncStream`; each test gets an isolated SQLite DB via `tmp_path`
+- **Frontend:** vitest + jsdom — run with `cd frontend && npm test`
+  - `src/__tests__/doc-template.test.ts` — 28 tests (`extractTemplateVariables`, `resolveTemplate`, `filenameToSlug`)
+  - `src/__tests__/api.test.ts` — 22 tests (`mapFieldsToFormData` snake_case → camelCase mapping)
 
 ## Color Scheme
 ---
@@ -67,3 +76,9 @@ LLM calls use LiteLLM via OpenRouter with Cerebras as the inference provider (`o
 **TES-16** — Replace dashboard catalog with intent-driven flow: AI asks what document the user needs, dynamically loads the template, shows a placeholder until selected
 
 **TES-17** — Replace SSE streaming with single JSON response + frontend typewriter animation (two-phase: pulsing cursor while waiting → character-by-character reveal on response; adaptive speed formula; fields applied at start of reveal)
+
+**TES-18** — Extract prompts from `main.py` into `backend/prompts.py` (`CHAT_SYSTEM_PROMPT`, `EXTRACTION_SYSTEM_PROMPT`, `GENERIC_EXTRACTION_PROMPT`, `build_chat_prompt`)
+
+**TES-19** — Extract utility functions from `main.py` into `backend/utils.py` (`_sanitize_field_name`, `build_extraction_model`); update test imports
+
+**TES-20** — Restructure backend into proper layered architecture: `app/routes/`, `app/services/`, `app/models/`, `app/data/`, `app/config.py`; fix `init_db` data-destruction bug; depends on TES-18 + TES-19
