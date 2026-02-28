@@ -13,6 +13,7 @@ export default function DashboardClient() {
   const [templateData, setTemplateData] = useState<TemplateData | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
   function handleLogout() {
     clearToken();
@@ -25,14 +26,15 @@ export default function DashboardClient() {
     [],
   );
 
-  const handleDocumentSelected = useCallback(async (name: string, slug: string) => {
+  const handleDocumentSelected = useCallback(async (_name: string, slug: string) => {
     setLoadingTemplate(true);
+    setTemplateError(null);
     try {
       const data = await fetchTemplate(slug);
       setTemplateData(data);
       setFields({});
     } catch (err) {
-      console.error("Failed to load template:", err);
+      setTemplateError(err instanceof Error ? err.message : "Failed to load template");
     } finally {
       setLoadingTemplate(false);
     }
@@ -80,6 +82,11 @@ export default function DashboardClient() {
 
           {/* Right: Document preview or placeholder */}
           <div className="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+            {templateError && (
+              <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 mb-4">
+                {templateError}
+              </div>
+            )}
             {loadingTemplate ? (
               <div
                 className="nda-document flex items-center justify-center"
