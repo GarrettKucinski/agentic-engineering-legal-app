@@ -1,24 +1,24 @@
 """
 Shared pytest fixtures for backend tests.
 
-Env vars are set before any project imports so that main.py's module-level
+Env vars are set before any project imports so that app/config.py's module-level
 guards (SECRET_KEY, OPENROUTER_API_KEY) don't raise at import time.
 """
 import os
 import sys
 
-# Must be set before importing main.py
+# Must be set before importing app modules
 os.environ.setdefault("SECRET_KEY", "test-secret-key-do-not-use-in-production")
 os.environ.setdefault("OPENROUTER_API_KEY", "test-openrouter-key")
 
-# Ensure backend/ directory is on the path so `import main` and `import db` work
+# Ensure backend/ directory is on the path so `import app` works
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 import pytest_asyncio
-import db as db_module
+import app.data.db as db_module
 from httpx import AsyncClient, ASGITransport
-from main import app
+from app.main import app
 
 
 @pytest_asyncio.fixture
