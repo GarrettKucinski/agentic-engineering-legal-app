@@ -68,8 +68,6 @@ async def generate_chat_stream(
                 (e for e in catalog if e["name"] == selection.selected_document_name), None
             )
             if catalog_entry:
-                from app.catalog import extract_template_variables, load_template
-
                 slug = catalog_entry["filename"].removesuffix(".md")
                 yield f"data: {json.dumps({'type': 'document_selected', 'name': selection.selected_document_name, 'slug': slug})}\n\n"
 
