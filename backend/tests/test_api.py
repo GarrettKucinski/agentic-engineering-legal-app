@@ -163,7 +163,7 @@ async def test_chat_streams_sse_events(authed_client):
     client, token = authed_client
     extraction_json = json.dumps({"provider": "Acme Corp"})
 
-    with patch("main.acompletion", side_effect=_mock_acompletion("Hello!", extraction_json)):
+    with patch("app.services.chat.acompletion", side_effect=_mock_acompletion("Hello!", extraction_json)):
         resp = await client.post(
             "/api/chat",
             json={
@@ -196,7 +196,7 @@ async def test_chat_streams_sse_events(authed_client):
     # Fields event carries data
     fields_events = [e for e in events if e["type"] == "fields"]
     assert len(fields_events) == 1
-    # Generic doc: key_map reverses sanitized → original; "provider" → "Provider"
+    # Generic doc: key_map reverses sanitized -> original; "provider" -> "Provider"
     assert fields_events[0]["data"].get("Provider") == "Acme Corp"
 
     # done is last
@@ -208,7 +208,7 @@ async def test_chat_nda_fields_use_snake_case_keys(authed_client):
     client, token = authed_client
     extraction_json = json.dumps({"party1_name": "Alice", "governing_law": "Delaware"})
 
-    with patch("main.acompletion", side_effect=_mock_acompletion("Hi!", extraction_json)):
+    with patch("app.services.chat.acompletion", side_effect=_mock_acompletion("Hi!", extraction_json)):
         resp = await client.post(
             "/api/chat",
             json={"messages": [], "document_type": "Mutual NDA", "variables": []},

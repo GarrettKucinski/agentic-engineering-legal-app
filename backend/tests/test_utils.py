@@ -1,15 +1,11 @@
 """
-Unit tests for pure utility functions in main.py.
+Unit tests for pure utility functions.
 These tests have no external dependencies (no DB, no LLM calls).
 """
 import pytest
-from main import (
-    _sanitize_field_name,
-    build_chat_prompt,
-    build_extraction_model,
-    verify_password,
-    _ADDENDUM_TYPES,
-)
+from app.utils import _sanitize_field_name, build_extraction_model
+from app.prompts import build_chat_prompt, _ADDENDUM_TYPES
+from app.services.auth import verify_password
 from argon2 import PasswordHasher
 
 ph = PasswordHasher()
@@ -47,7 +43,7 @@ class TestSanitizeFieldName:
         assert _sanitize_field_name("") == ""
 
     def test_only_special_chars(self):
-        # All non-alphanumeric → all underscores → strip → empty
+        # All non-alphanumeric -> all underscores -> strip -> empty
         assert _sanitize_field_name("---") == ""
 
     def test_numbers_preserved(self):
@@ -107,7 +103,7 @@ class TestBuildExtractionModel:
         assert key_map["provider_name"] == "Provider Name"
 
     def test_possessives_deduplicated(self):
-        # "Provider's" sanitizes to "provider" — same as "Provider"
+        # "Provider's" sanitizes to "provider" -- same as "Provider"
         model_cls, key_map = build_extraction_model(["Provider", "Provider's"])
         # Only one "provider" field; the second is silently skipped
         assert "provider" in key_map

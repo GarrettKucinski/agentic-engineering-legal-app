@@ -1,0 +1,83 @@
+import json
+
+from litellm import acompletion
+
+from app.config import EXTRA_BODY, MODEL, OPENROUTER_API_KEY
+from app.models.chat import NdaFieldExtraction
+from app.prompts import (
+    CHAT_SYSTEM_PROMPT,
+    EXTRACTION_SYSTEM_PROMPT,
+    GENERIC_EXTRACTION_PROMPT,
+    build_chat_prompt,
+)
+from app.utils import build_extraction_model
+
+
+async def generate_chat_stream(
+    messages: list[dict],
+    document_type: str = "Mutual NDA",
+    variables: list[str] = [],
+):
+    is_nda = document_type == "Mutual NDA"
+
+    if is_nda:
+        system_prompt = CHAT_SYSTEM_PROMPT
+        extraction_prompt = EXTRACTION_SYSTEM_PROMPT
+        extraction_model = NdaFieldExtraction
+        key_map: dict[str, str] = {}
+    else:
+        system_prompt = build_chat_prompt(document_type, variables)
+        extraction_prompt = GENERIC_EXTRACTION_PROMPT
+        extraction_model, key_map = build_extraction_model(variables)
+
+    conversation = [{"role": "system", "content": system_prompt}] + messages
+
+    # Stream the conversational response (async to avoid blocking the event loop)
+    response = await acompletion(
+        model=MODEL,
+        messages=conversation,
+        stream=True,
+        reasoning_effort="low",
+        extra_body=EXTRA_BODY,
+        api_key=OPENROUTER_API_KEY,
+    )
+
+    full_response = ""
+    async for chunk in response:
+        content = chunk.choices[0].delta.content or ""
+        if content:
+            full_response += content
+            yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+
+    # Extract fields from the completed conversation
+    extraction_messages = [
+        {"role": "system", "content": extraction_prompt},
+        *messages,
+        {"role": "assistant", "content": full_response},
+    ]
+
+    field_response = await acompletion(
+        model=MODEL,
+        messages=extraction_messages,
+        response_format=extraction_model,
+        reasoning_effort="low",
+        extra_body=EXTRA_BODY,
+        api_key=OPENROUTER_API_KEY,
+    )
+
+    fields = extraction_model.model_validate_json(
+        field_response.choices[0].message.content
+    )
+
+    if is_nda:
+        # NDA: emit snake_case keys; frontend maps them to camelCase NdaFormData
+        fields_dict = {k: v for k, v in fields.model_dump().items() if v is not None}
+    else:
+        # Generic: remap sanitized keys back to original display names for template substitution
+        fields_dict = {}
+        for k, v in fields.model_dump().items():
+            if v is not None:
+                fields_dict[key_map.get(k, k)] = v
+
+    yield f"data: {json.dumps({'type': 'fields', 'data': fields_dict})}\n\n"
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
